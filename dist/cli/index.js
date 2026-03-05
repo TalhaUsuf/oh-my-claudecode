@@ -41,26 +41,6 @@ async function defaultAction() {
     const args = process.argv.slice(2);
     await launchCommand(args);
 }
-async function runTeamCommand(args) {
-    const teamModuleUrl = new URL('./team.js', import.meta.url).href;
-    const teamModule = await import(teamModuleUrl);
-    const runner = teamModule.teamCommand ?? teamModule.main ?? teamModule.default;
-    if (!runner) {
-        throw new Error('Team CLI command module loaded but no runnable export found (expected teamCommand, main, or default).');
-    }
-    await runner(args);
-}
-const TEAM_COMMAND_USAGE = `
-Usage:
-  omc team start --agent <claude|codex|gemini>[,<agent>...] --task "<task>" [--count N] [--name TEAM] [--cwd DIR] [--json]
-  omc team status <job_id|team_name> [--json] [--cwd DIR]
-  omc team wait <job_id> [--timeout-ms MS] [--json]
-  omc team cleanup <job_id> [--grace-ms MS] [--json]
-  omc team resume <team_name> [--json] [--cwd DIR]
-  omc team shutdown <team_name> [--force] [--json] [--cwd DIR]
-  omc team api <operation> [--input '<json>'] [--json] [--cwd DIR]
-  omc team [ralph] <N:agent-type> "task" [--json] [--cwd DIR]
-`.trim();
 program
     .name('omc')
     .description('Multi-agent orchestration system for Claude Agent SDK')
@@ -1096,14 +1076,6 @@ waitCmd
         json: options.json,
         lines: parseInt(options.lines),
     });
-});
-program
-    .command('team [args...]')
-    .description('Team CLI runtime + legacy commands (start/status/wait/cleanup/resume/shutdown/api)')
-    .allowUnknownOption()
-    .addHelpText('after', `\n${TEAM_COMMAND_USAGE}`)
-    .action(async (args) => {
-    await runTeamCommand(args);
 });
 /**
  * Teleport command - Quick worktree creation

@@ -177,7 +177,7 @@ async function spawnV2Worker(opts) {
             try {
                 await execFileAsync('tmux', ['kill-pane', '-t', paneId]);
             }
-            catch { }
+            catch { /* best-effort cleanup */ }
             return null;
         }
         // Handle gemini trust-confirm
@@ -187,7 +187,7 @@ async function spawnV2Worker(opts) {
                 try {
                     await execFileAsync('tmux', ['kill-pane', '-t', paneId]);
                 }
-                catch { }
+                catch { /* best-effort cleanup */ }
                 return null;
             }
             await new Promise(r => setTimeout(r, 800));
@@ -198,7 +198,7 @@ async function spawnV2Worker(opts) {
             try {
                 await execFileAsync('tmux', ['kill-pane', '-t', paneId]);
             }
-            catch { }
+            catch { /* best-effort cleanup */ }
             return null;
         }
     }
@@ -592,7 +592,7 @@ export async function shutdownTeamV2(teamName, cwd, options = {}) {
             const { killTeamSession } = await import('./tmux-session.js');
             await killTeamSession(`omc-team-${sanitized}`, [], undefined);
         }
-        catch { }
+        catch { /* best-effort session cleanup */ }
         await cleanupTeamState(sanitized, cwd);
         return;
     }

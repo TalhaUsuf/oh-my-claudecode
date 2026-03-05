@@ -515,6 +515,22 @@ describe('Team staged workflow integration', () => {
         expect(result.message).toContain('team-fix');
         expect(result.message).toContain('fix loop');
     });
+    it('skips Team stage continuation on authentication stop reasons', async () => {
+        writeFileSync(join(testDir, '.omc', 'state', 'sessions', sessionId, 'team-state.json'), JSON.stringify({
+            active: true,
+            session_id: sessionId,
+            stage: 'team-verify',
+            team_name: 'delivery-team'
+        }));
+        const result = await processHook('persistent-mode', {
+            sessionId,
+            directory: testDir,
+            stopReason: 'oauth_expired',
+        });
+        expect(result.continue).toBe(true);
+        expect(result.message || '').not.toContain('[TEAM MODE CONTINUATION]');
+        expect(result.message || '').toContain('AUTHENTICATION ERROR');
+    });
     it('allows terminal cleanup when Team stage is cancelled', async () => {
         writeFileSync(join(testDir, '.omc', 'state', 'sessions', sessionId, 'team-state.json'), JSON.stringify({
             active: true,

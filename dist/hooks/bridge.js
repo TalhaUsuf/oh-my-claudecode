@@ -343,7 +343,7 @@ async function processPersistentMode(input) {
     const directory = resolveToWorktreeRoot(input.directory);
     // Lazy-load persistent-mode and todo-continuation modules
     const { checkPersistentModes, createHookOutput, shouldSendIdleNotification, recordIdleNotificationSent } = await import("./persistent-mode/index.js");
-    const { isExplicitCancelCommand } = await import("./todo-continuation/index.js");
+    const { isExplicitCancelCommand, isAuthenticationError } = await import("./todo-continuation/index.js");
     // Extract stop context for abort detection (supports both camelCase and snake_case)
     const stopContext = {
         stop_reason: input.stop_reason,
@@ -390,6 +390,11 @@ async function processPersistentMode(input) {
     }
     // Explicit cancel should suppress team continuation prompts.
     if (isExplicitCancelCommand(stopContext)) {
+        return output;
+    }
+    // Auth failures (401/403/expired OAuth) should not inject Team continuation.
+    // Otherwise stop hooks can force a retry loop while credentials are invalid.
+    if (isAuthenticationError(stopContext)) {
         return output;
     }
     const stage = getTeamStage(teamState);

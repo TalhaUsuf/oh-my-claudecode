@@ -37,8 +37,7 @@ interface TransitionDeps extends ClaimTaskDeps {
     writeMonitorSnapshot: (teamName: string, snapshot: TeamMonitorSnapshotState, cwd: string) => Promise<void>;
 }
 export declare function transitionTaskStatus(taskId: string, from: TeamTaskStatus, to: TeamTaskStatus, claimToken: string, deps: TransitionDeps): Promise<TransitionTaskResult>;
-interface ReleaseDeps extends ClaimTaskDeps {
-}
+type ReleaseDeps = ClaimTaskDeps;
 export declare function releaseTaskClaim(taskId: string, claimToken: string, _workerName: string, deps: ReleaseDeps): Promise<ReleaseTaskClaimResult>;
 export declare function listTasks(teamName: string, cwd: string, deps: {
     teamDir: (teamName: string, cwd: string) => string;

@@ -275,6 +275,25 @@ describe("Stop Hook Blocking Contract", () => {
             });
             expect(output.continue).toBe(true);
         });
+        it("returns continue: true for authentication error stop", () => {
+            const sessionId = "auth-error-mjs";
+            const sessionDir = join(tempDir, ".omc", "state", "sessions", sessionId);
+            mkdirSync(sessionDir, { recursive: true });
+            writeFileSync(join(sessionDir, "ralph-state.json"), JSON.stringify({
+                active: true,
+                iteration: 1,
+                max_iterations: 50,
+                session_id: sessionId,
+                started_at: new Date().toISOString(),
+                last_checked_at: new Date().toISOString(),
+            }));
+            const output = runScript({
+                directory: tempDir,
+                sessionId,
+                stop_reason: "oauth_expired",
+            });
+            expect(output.continue).toBe(true);
+        });
         it("returns continue: true when no modes are active", () => {
             const output = runScript({ directory: tempDir, sessionId: "no-modes" });
             expect(output.continue).toBe(true);
@@ -291,6 +310,56 @@ describe("Stop Hook Blocking Contract", () => {
                 last_checked_at: new Date().toISOString(),
             }));
             const output = runScript({ directory: tempDir, sessionId });
+            expect(output.continue).toBe(true);
+        });
+    });
+    describe("persistent-mode.cjs script blocking contract", () => {
+        let tempDir;
+        const scriptPath = join(process.cwd(), "scripts", "persistent-mode.cjs");
+        function runScript(input) {
+            try {
+                const result = execSync(`node "${scriptPath}"`, {
+                    encoding: "utf-8",
+                    timeout: 5000,
+                    input: JSON.stringify(input),
+                    env: { ...process.env, NODE_ENV: "test" },
+                });
+                const lines = result.trim().split("\n");
+                return JSON.parse(lines[lines.length - 1]);
+            }
+            catch (error) {
+                const execError = error;
+                if (execError.stdout) {
+                    const lines = execError.stdout.trim().split("\n");
+                    return JSON.parse(lines[lines.length - 1]);
+                }
+                throw error;
+            }
+        }
+        beforeEach(() => {
+            tempDir = mkdtempSync(join(tmpdir(), "stop-hook-cjs-test-"));
+            execSync("git init", { cwd: tempDir });
+        });
+        afterEach(() => {
+            rmSync(tempDir, { recursive: true, force: true });
+        });
+        it("returns continue: true for authentication error stop", () => {
+            const sessionId = "auth-error-cjs";
+            const sessionDir = join(tempDir, ".omc", "state", "sessions", sessionId);
+            mkdirSync(sessionDir, { recursive: true });
+            writeFileSync(join(sessionDir, "ralph-state.json"), JSON.stringify({
+                active: true,
+                iteration: 1,
+                max_iterations: 50,
+                session_id: sessionId,
+                started_at: new Date().toISOString(),
+                last_checked_at: new Date().toISOString(),
+            }));
+            const output = runScript({
+                directory: tempDir,
+                sessionId,
+                stop_reason: "oauth_expired",
+            });
             expect(output.continue).toBe(true);
         });
     });
