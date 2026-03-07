@@ -672,20 +672,39 @@ async function checkTeamPipeline(
     return {
       shouldBlock: false,
       message: '',
-      mode: 'none'
+      mode: 'team'
     };
   }
 
+  // Read phase from `phase` (team-pipeline format) or `stage` (bridge.ts format)
+  const rawPhase = teamState.phase ?? (teamState as unknown as Record<string, unknown>).stage;
+
+  // Fail-open: phase must be a string and a known active phase.
+  // Missing, malformed, or unknown phases do not block (safety principle).
+  const KNOWN_ACTIVE_PHASES = new Set(['team-plan', 'team-prd', 'team-exec', 'team-verify', 'team-fix']);
+  if (typeof rawPhase !== 'string' || !KNOWN_ACTIVE_PHASES.has(rawPhase)) {
+    return null;
+  }
+  const phase: string = rawPhase;
+
   // Terminal phases — allow stop
-  // Note: some callers write `stage` instead of `phase` (bridge.ts format).
-  // Treat both as equivalent and fall back to 'unknown' if neither exists.
-  const phase = teamState.phase ?? (teamState as unknown as Record<string, unknown>).stage as string | undefined;
   if (phase === 'complete' || phase === 'failed' || phase === 'cancelled') {
     writeStopBreaker(workingDir, 'team-pipeline', 0, sessionId);
     return {
       shouldBlock: false,
       message: '',
-      mode: 'none'
+      mode: 'team'
+    };
+  }
+
+  // Status-level terminal check (bridge.ts format uses `status` field)
+  const status = (teamState as unknown as Record<string, unknown>).status;
+  if (status === 'cancelled' || status === 'failed' || status === 'complete') {
+    writeStopBreaker(workingDir, 'team-pipeline', 0, sessionId);
+    return {
+      shouldBlock: false,
+      message: '',
+      mode: 'team'
     };
   }
 
@@ -695,7 +714,7 @@ async function checkTeamPipeline(
     return {
       shouldBlock: false,
       message: '',
-      mode: 'none'
+      mode: 'team'
     };
   }
 
@@ -706,7 +725,7 @@ async function checkTeamPipeline(
     return {
       shouldBlock: false,
       message: `[TEAM PIPELINE CIRCUIT BREAKER] Stop enforcement exceeded ${TEAM_PIPELINE_STOP_BLOCKER_MAX} reinforcements. Allowing stop to prevent infinite blocking.`,
-      mode: 'none'
+      mode: 'team'
     };
   }
   writeStopBreaker(workingDir, 'team-pipeline', breakerCount, sessionId);
@@ -715,9 +734,9 @@ async function checkTeamPipeline(
     shouldBlock: true,
     message: `<team-pipeline-continuation>
 
-[TEAM PIPELINE - PHASE: ${(phase ?? 'unknown').toUpperCase()} | REINFORCEMENT ${breakerCount}/${TEAM_PIPELINE_STOP_BLOCKER_MAX}]
+[TEAM PIPELINE - PHASE: ${phase.toUpperCase()} | REINFORCEMENT ${breakerCount}/${TEAM_PIPELINE_STOP_BLOCKER_MAX}]
 
-The team pipeline is active in phase "${phase ?? 'unknown'}". Continue working on the team workflow.
+The team pipeline is active in phase "${phase}". Continue working on the team workflow.
 Do not stop until the pipeline reaches a terminal state (complete/failed/cancelled).
 When done, run \`/oh-my-claudecode:cancel\` to cleanly exit.
 
