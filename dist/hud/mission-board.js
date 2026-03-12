@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { atomicWriteJsonSync } from '../lib/atomic-write.js';
 import { getOmcRoot } from '../lib/worktree-paths.js';
@@ -137,6 +137,32 @@ function recalcSessionMission(mission) {
 }
 export function readMissionBoardState(directory) {
     return readJsonSafe(stateFilePath(directory));
+}
+export function cleanupSessionMissionState(directory, sessionId) {
+    const state = readMissionBoardState(directory);
+    if (!state) {
+        return false;
+    }
+    const missions = Array.isArray(state.missions) ? state.missions : [];
+    const filteredMissions = missions.filter((mission) => mission.source !== 'session' || !mission.id.startsWith(`session:${sessionId}:`));
+    if (filteredMissions.length === missions.length) {
+        return false;
+    }
+    if (filteredMissions.length === 0) {
+        try {
+            unlinkSync(stateFilePath(directory));
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }
+    writeState(directory, {
+        ...state,
+        updatedAt: new Date().toISOString(),
+        missions: filteredMissions,
+    });
+    return true;
 }
 export function recordMissionAgentStart(directory, input) {
     const now = input.at || new Date().toISOString();

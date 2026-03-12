@@ -118,5 +118,32 @@ describe('processSessionEnd mode state cleanup (issue #1427)', () => {
         expect(fs.existsSync(sessionStatePath)).toBe(false);
         expect(fs.existsSync(legacyStatePath)).toBe(false);
     });
+    it('removes only the ending session mission entries from mission-state.json', async () => {
+        const endingSessionId = 'pid-1590-ending';
+        const otherSessionId = 'pid-1590-other';
+        const missionStatePath = path.join(tmpDir, '.omc', 'state', 'mission-state.json');
+        fs.mkdirSync(path.dirname(missionStatePath), { recursive: true });
+        fs.writeFileSync(missionStatePath, JSON.stringify({
+            updatedAt: '2026-03-12T00:00:00.000Z',
+            missions: [
+                { id: `session:${endingSessionId}:ultrawork`, source: 'session', name: 'ultrawork' },
+                { id: `session:${otherSessionId}:ralph`, source: 'session', name: 'ralph' },
+                { id: 'team:delivery', source: 'team', name: 'delivery' },
+            ],
+        }, null, 2), 'utf-8');
+        await processSessionEnd({
+            session_id: endingSessionId,
+            transcript_path: transcriptPath,
+            cwd: tmpDir,
+            permission_mode: 'default',
+            hook_event_name: 'SessionEnd',
+            reason: 'clear',
+        });
+        const persisted = JSON.parse(fs.readFileSync(missionStatePath, 'utf-8'));
+        expect(persisted.missions.map((mission) => mission.id)).toEqual([
+            `session:${otherSessionId}:ralph`,
+            'team:delivery',
+        ]);
+    });
 });
 //# sourceMappingURL=mode-state-cleanup.test.js.map

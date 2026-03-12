@@ -94,7 +94,6 @@ describe("Stop Hook Blocking Contract", () => {
 
     beforeEach(() => {
       tempDir = mkdtempSync(join(tmpdir(), "stop-hook-blocking-test-"));
-      execSync("git init", { cwd: tempDir });
     });
 
     afterEach(() => {
@@ -269,7 +268,7 @@ describe("Stop Hook Blocking Contract", () => {
 
     function runScript(input: Record<string, unknown>): Record<string, unknown> {
       try {
-        const result = execSync(`node "${scriptPath}"`, {
+        const result = execFileSync("node", [scriptPath], {
           encoding: "utf-8",
           timeout: 5000,
           input: JSON.stringify(input),
@@ -289,7 +288,6 @@ describe("Stop Hook Blocking Contract", () => {
 
     beforeEach(() => {
       tempDir = mkdtempSync(join(tmpdir(), "stop-hook-mjs-test-"));
-      execSync("git init", { cwd: tempDir });
     });
 
     afterEach(() => {
@@ -521,7 +519,7 @@ describe("Stop Hook Blocking Contract", () => {
 
     function runScript(input: Record<string, unknown>): Record<string, unknown> {
       try {
-        const result = execSync(`node "${scriptPath}"`, {
+        const result = execFileSync("node", [scriptPath], {
           encoding: "utf-8",
           timeout: 5000,
           input: JSON.stringify(input),
@@ -541,7 +539,6 @@ describe("Stop Hook Blocking Contract", () => {
 
     beforeEach(() => {
       tempDir = mkdtempSync(join(tmpdir(), "stop-hook-cjs-test-"));
-      execSync("git init", { cwd: tempDir });
     });
 
     afterEach(() => {

@@ -9746,6 +9746,7 @@ REMEMBER THE ULTRAWORK RULES:
 - **TODO**: Track EVERY step. Mark complete IMMEDIATELY after each
 - **VERIFY**: Check ALL requirements met before done
 - **NO Premature Stopping**: ALL TODOs must be complete
+- **EXIT CLEANLY**: If everything is implemented and verified, your VERY NEXT action must be \`/oh-my-claudecode:cancel\` (retry with \`/oh-my-claudecode:cancel --force\` if needed). Do not just say the work is done.
 
 Continue working on the next pending task. DO NOT STOP until all tasks are marked complete.
 
@@ -10807,6 +10808,7 @@ var init_string_width = __esm({
 var mission_board_exports = {};
 __export(mission_board_exports, {
   DEFAULT_MISSION_BOARD_CONFIG: () => DEFAULT_MISSION_BOARD_CONFIG,
+  cleanupSessionMissionState: () => cleanupSessionMissionState,
   readMissionBoardState: () => readMissionBoardState,
   recordMissionAgentStart: () => recordMissionAgentStart,
   recordMissionAgentStop: () => recordMissionAgentStop,
@@ -10916,6 +10918,33 @@ function recalcSessionMission(mission) {
 }
 function readMissionBoardState(directory) {
   return readJsonSafe(stateFilePath(directory));
+}
+function cleanupSessionMissionState(directory, sessionId) {
+  const state = readMissionBoardState(directory);
+  if (!state) {
+    return false;
+  }
+  const missions = Array.isArray(state.missions) ? state.missions : [];
+  const filteredMissions = missions.filter(
+    (mission) => mission.source !== "session" || !mission.id.startsWith(`session:${sessionId}:`)
+  );
+  if (filteredMissions.length === missions.length) {
+    return false;
+  }
+  if (filteredMissions.length === 0) {
+    try {
+      (0, import_node_fs.unlinkSync)(stateFilePath(directory));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  writeState(directory, {
+    ...state,
+    updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    missions: filteredMissions
+  });
+  return true;
 }
 function recordMissionAgentStart(directory, input) {
   const now = input.at || (/* @__PURE__ */ new Date()).toISOString();
@@ -15792,6 +15821,17 @@ async function checkUltrawork(sessionId, directory, _hasIncompleteTodos, cancelI
       mode: "none"
     };
   }
+  const breakerCount = readStopBreaker(workingDir, "ultrawork", sessionId, ULTRAWORK_STOP_BLOCKER_TTL_MS) + 1;
+  if (breakerCount > ULTRAWORK_STOP_BLOCKER_MAX) {
+    deactivateUltrawork(workingDir, sessionId);
+    writeStopBreaker(workingDir, "ultrawork", 0, sessionId);
+    return {
+      shouldBlock: false,
+      message: `[ULTRAWORK CIRCUIT BREAKER] Stop enforcement exceeded ${ULTRAWORK_STOP_BLOCKER_MAX} reinforcements. Ultrawork state was deactivated to avoid leaving active:true after completion.`,
+      mode: "ultrawork"
+    };
+  }
+  writeStopBreaker(workingDir, "ultrawork", breakerCount, sessionId);
   const newState = incrementReinforcement(workingDir, sessionId);
   if (!newState) {
     return null;
@@ -15884,7 +15924,7 @@ async function checkPersistentModes(sessionId, directory, stopContext) {
     return ralplanResult;
   }
   const ultraworkResult = await checkUltrawork(sessionId, workingDir, hasIncompleteTodos, cancelInProgress);
-  if (ultraworkResult?.shouldBlock) {
+  if (ultraworkResult) {
     return ultraworkResult;
   }
   try {
@@ -15915,7 +15955,7 @@ function createHookOutput(result) {
     message: result.message || void 0
   };
 }
-var import_fs46, import_path50, import_os10, CANCEL_SIGNAL_TTL_MS2, todoContinuationAttempts, TRANSCRIPT_TAIL_BYTES, CRITICAL_CONTEXT_STOP_PERCENT, TEAM_PIPELINE_STOP_BLOCKER_MAX, TEAM_PIPELINE_STOP_BLOCKER_TTL_MS, RALPLAN_STOP_BLOCKER_MAX, RALPLAN_STOP_BLOCKER_TTL_MS;
+var import_fs46, import_path50, import_os10, CANCEL_SIGNAL_TTL_MS2, todoContinuationAttempts, TRANSCRIPT_TAIL_BYTES, CRITICAL_CONTEXT_STOP_PERCENT, TEAM_PIPELINE_STOP_BLOCKER_MAX, TEAM_PIPELINE_STOP_BLOCKER_TTL_MS, RALPLAN_STOP_BLOCKER_MAX, RALPLAN_STOP_BLOCKER_TTL_MS, ULTRAWORK_STOP_BLOCKER_MAX, ULTRAWORK_STOP_BLOCKER_TTL_MS;
 var init_persistent_mode = __esm({
   "src/hooks/persistent-mode/index.ts"() {
     "use strict";
@@ -15941,6 +15981,8 @@ var init_persistent_mode = __esm({
     TEAM_PIPELINE_STOP_BLOCKER_TTL_MS = 5 * 60 * 1e3;
     RALPLAN_STOP_BLOCKER_MAX = 30;
     RALPLAN_STOP_BLOCKER_TTL_MS = 45 * 60 * 1e3;
+    ULTRAWORK_STOP_BLOCKER_MAX = 20;
+    ULTRAWORK_STOP_BLOCKER_TTL_MS = 5 * 60 * 1e3;
   }
 });
 
@@ -21291,6 +21333,9 @@ async function processSessionEnd(input) {
   exportSessionSummary(directory, metrics);
   cleanupTransientState(directory);
   cleanupModeStates(directory, input.session_id);
+  if (input.session_id) {
+    cleanupSessionMissionState(directory, input.session_id);
+  }
   try {
     const pythonSessionIds = await extractPythonReplSessionIdsFromTranscript(input.transcript_path);
     if (pythonSessionIds.length > 0) {
@@ -21356,6 +21401,7 @@ var init_session_end = __esm({
     init_worktree_paths();
     init_mode_names();
     init_mode_state_io();
+    init_mission_board();
     PYTHON_REPL_TOOL_NAMES = /* @__PURE__ */ new Set(["python_repl", "mcp__t__python_repl"]);
   }
 });

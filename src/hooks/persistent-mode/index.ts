@@ -836,6 +836,8 @@ When done, run \`/oh-my-claudecode:cancel\` to cleanly exit.
 
 const RALPLAN_STOP_BLOCKER_MAX = 30;
 const RALPLAN_STOP_BLOCKER_TTL_MS = 45 * 60 * 1000; // 45 min
+const ULTRAWORK_STOP_BLOCKER_MAX = 20;
+const ULTRAWORK_STOP_BLOCKER_TTL_MS = 5 * 60 * 1000; // 5 min
 
 interface RalplanState {
   active: boolean;
@@ -944,6 +946,18 @@ async function checkUltrawork(
       mode: 'none'
     };
   }
+
+  const breakerCount = readStopBreaker(workingDir, 'ultrawork', sessionId, ULTRAWORK_STOP_BLOCKER_TTL_MS) + 1;
+  if (breakerCount > ULTRAWORK_STOP_BLOCKER_MAX) {
+    deactivateUltrawork(workingDir, sessionId);
+    writeStopBreaker(workingDir, 'ultrawork', 0, sessionId);
+    return {
+      shouldBlock: false,
+      message: `[ULTRAWORK CIRCUIT BREAKER] Stop enforcement exceeded ${ULTRAWORK_STOP_BLOCKER_MAX} reinforcements. Ultrawork state was deactivated to avoid leaving active:true after completion.`,
+      mode: 'ultrawork'
+    };
+  }
+  writeStopBreaker(workingDir, 'ultrawork', breakerCount, sessionId);
 
   // Reinforce ultrawork mode - ALWAYS continue while active.
   // This prevents false stops from bash errors, transient failures, etc.
@@ -1162,8 +1176,9 @@ export async function checkPersistentModes(
   }
 
   // Priority 2: Ultrawork Mode (performance mode with persistence)
+  // Return ANY non-null result (including circuit breaker shouldBlock=false with message).
   const ultraworkResult = await checkUltrawork(sessionId, workingDir, hasIncompleteTodos, cancelInProgress);
-  if (ultraworkResult?.shouldBlock) {
+  if (ultraworkResult) {
     return ultraworkResult;
   }
 

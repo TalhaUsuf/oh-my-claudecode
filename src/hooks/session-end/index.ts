@@ -10,6 +10,7 @@ import { cleanupBridgeSessions } from '../../tools/python-repl/bridge-manager.js
 import { resolveToWorktreeRoot, getOmcRoot, validateSessionId, isValidTranscriptPath, resolveSessionStatePath } from '../../lib/worktree-paths.js';
 import { SESSION_END_MODE_STATE_FILES, SESSION_METRICS_MODE_FILES } from '../../lib/mode-names.js';
 import { clearModeStateFile, readModeState } from '../../lib/mode-state-io.js';
+import { cleanupSessionMissionState } from '../../hud/mission-board.js';
 
 export interface SessionEndInput {
   session_id: string;
@@ -547,6 +548,9 @@ export async function processSessionEnd(input: SessionEndInput): Promise<HookOut
   // This ensures the stop hook won't malfunction in subsequent sessions
   // Pass session_id to only clean up this session's states
   cleanupModeStates(directory, input.session_id);
+  if (input.session_id) {
+    cleanupSessionMissionState(directory, input.session_id);
+  }
 
   // Clean up Python REPL bridge sessions used in this transcript (#641).
   // Best-effort only: session end should not fail because cleanup fails.

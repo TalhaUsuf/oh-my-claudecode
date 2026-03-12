@@ -68,6 +68,7 @@ export interface MissionAgentStopInput {
 }
 export declare const DEFAULT_MISSION_BOARD_CONFIG: MissionBoardConfig;
 export declare function readMissionBoardState(directory: string): MissionBoardState | null;
+export declare function cleanupSessionMissionState(directory: string, sessionId: string): boolean;
 export declare function recordMissionAgentStart(directory: string, input: MissionAgentStartInput): MissionBoardState;
 export declare function recordMissionAgentStop(directory: string, input: MissionAgentStopInput): MissionBoardState;
 export declare function refreshMissionBoardState(directory: string, rawConfig?: MissionBoardConfig): MissionBoardState;

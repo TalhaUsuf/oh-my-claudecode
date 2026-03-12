@@ -26,6 +26,8 @@ export interface UltraworkState {
   project_path?: string;
   /** Number of times the mode has been reinforced (for metrics) */
   reinforcement_count: number;
+  /** Maximum stop-hook reinforcements before the mode self-deactivates */
+  max_reinforcements?: number;
   /** Last time the mode was checked/reinforced */
   last_checked_at: string;
   /** Whether this ultrawork session is linked to a ralph-loop session */
@@ -232,6 +234,7 @@ REMEMBER THE ULTRAWORK RULES:
 - **TODO**: Track EVERY step. Mark complete IMMEDIATELY after each
 - **VERIFY**: Check ALL requirements met before done
 - **NO Premature Stopping**: ALL TODOs must be complete
+- **EXIT CLEANLY**: If everything is implemented and verified, your VERY NEXT action must be \`/oh-my-claudecode:cancel\` (retry with \`/oh-my-claudecode:cancel --force\` if needed). Do not just say the work is done.
 
 Continue working on the next pending task. DO NOT STOP until all tasks are marked complete.
 
