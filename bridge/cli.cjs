@@ -73240,6 +73240,16 @@ function escapeRegExp2(value) {
 function hasActivationIntentNearKeyword(context, keyword) {
   const escaped = escapeRegExp2(keyword.trim());
   if (!escaped) return false;
+  const helpQuestionPatterns = [
+    new RegExp(`\bhows+dos+is+use\b[^
+]{0,40}\b${escaped}\b`, "i"),
+    new RegExp(`\bwhat(?:'s|s+is)\b[^
+]{0,40}\b${escaped}\b[^
+]{0,40}\bhows+tos+use\b`, "i")
+  ];
+  if (helpQuestionPatterns.some((pattern) => pattern.test(context))) {
+    return false;
+  }
   const patterns = [
     new RegExp(`\\b(?:use|run|start|enable|activate|invoke|trigger|launch)\\b[^\\n]{0,28}\\b${escaped}\\b`, "i"),
     new RegExp(`\\b(?:fix|debug|investigate|resolve|handle|patch|address)\\b[^\\n]{0,28}\\b(?:issue|bug|problem|error)\\b[^\\n]{0,12}\\b(?:with|in)\\s+\\b${escaped}\\b`, "i")
@@ -73260,15 +73270,25 @@ function isInformationalKeywordContext2(text, position, keywordLength, keywordTe
   const start = Math.max(0, position - INFORMATIONAL_CONTEXT_WINDOW2);
   const end = Math.min(text.length, position + keywordLength + INFORMATIONAL_CONTEXT_WINDOW2);
   const context = text.slice(start, end);
+  const hasInformationalIntent = INFORMATIONAL_INTENT_PATTERNS2.some((pattern) => pattern.test(context));
+  const hasStrongHelpQueryIntent = /\?|？|\b(?:how\s+(?:to|do\s+i)\s+use|what(?:'s|\s+is)|explain|describe|tell\s+me\s+about)\b|(?:사용법|使い方|什么是|怎么用|如何使用)/iu.test(context);
   if (keywordText) {
-    if (hasActivationIntentNearKeyword(context, keywordText)) {
+    const hasActivationIntent = hasActivationIntentNearKeyword(context, keywordText);
+    const hasExecutionDirective = /\b(?:fix|debug|investigate|resolve|handle|patch|address|implement|build)\b/i.test(context);
+    if (hasActivationIntent && hasExecutionDirective) {
+      return false;
+    }
+    if (hasInformationalIntent && hasStrongHelpQueryIntent) {
+      return true;
+    }
+    if (hasActivationIntent) {
       return false;
     }
     if (hasDiagnosticIntentNearKeyword(context, keywordText)) {
       return true;
     }
   }
-  return INFORMATIONAL_INTENT_PATTERNS2.some((pattern) => pattern.test(context));
+  return hasInformationalIntent;
 }
 function findActionableKeywordMatch(text, pattern) {
   const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
